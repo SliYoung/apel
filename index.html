@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Apel Pagi Otomatis | Rutan Kelas IIB Painan</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+.container {
+    text-align: center;
+    background: #1e293b;
+    padding: 30px;
+    border-radius: 12px;
+    width: 360px;
+}
+.jam {
+    font-size: 22px;
+    margin-bottom: 15px;
+    font-weight: bold;
+}
+button {
+    font-size: 16px;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: bold;
+    width: 100%;
+    margin-top: 10px;
+}
+.btn-aktif {
+    background: #22c55e;
+}
+.btn-aktif:hover {
+    background: #16a34a;
+}
+.btn-manual {
+    background: #3b82f6;
+}
+.btn-manual:hover {
+    background: #2563eb;
+}
+.status {
+    margin-top: 15px;
+    font-size: 14px;
+    color: #a7f3d0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>📢 Apel Pagi Otomatis</h2>
+    <div class="jam" id="jamSekarang">--:--:--</div>
+
+    <button class="btn-aktif" onclick="aktifkanAudio()">
+        Aktifkan Sistem Apel
+    </button>
+
+    <button class="btn-manual" onclick="panggilManual()">
+        🔔 Panggil Manual
+    </button>
+
+    <div class="status" id="statusAudio">
+        🔴 Audio belum aktif
+    </div>
+</div>
+
+<!-- AUDIO -->
+<audio id="bellAwal" src="ringtone Hp bell bandara.mp3"></audio>
+<audio id="dentang" src="sound-effect-dentang-lonceng_xonDDXBv.mp3"></audio>
+
+<script>
+/* ======================
+   SETTING JAM APEL
+====================== */
+const JAM_APEL = 9;
+const MENIT_APEL = 12;
+
+/* ======================
+   DURASI
+====================== */
+const DURASI_BELL_AWAL = 5;
+const JEDA_SETELAH_BELL = 1;
+const JEDA_SETELAH_SUARA1 = 1;
+
+/* ======================
+   TEKS SUARA
+====================== */
+const TEKS_1 = `
+Mohon perhatian.
+Setelah tanda lonceng berbunyi,
+diharapkan seluruh peserta apel
+mempersiapkan barisan.
+`;
+
+const TEKS_2 = `
+Waktu sudah menunjukkan pukul sembilan W I B.
+Saatnya apel pagi.
+Terima kasih.
+`;
+
+/* ======================
+   VARIABEL
+====================== */
+let audioUnlocked = false;
+let sudahDipanggil = false;
+
+/* ======================
+   HELPER
+====================== */
+function delay(detik) {
+    return new Promise(res => setTimeout(res, detik * 1000));
+}
+
+function playTTS(text) {
+    return new Promise(resolve => {
+        const suara = new SpeechSynthesisUtterance(text);
+        suara.lang = "id-ID";
+        suara.rate = 0.9;
+        suara.onend = resolve;
+        window.speechSynthesis.speak(suara);
+    });
+}
+
+function playAudio(audioEl, durasi = null) {
+    return new Promise(resolve => {
+        audioEl.currentTime = 0;
+        audioEl.play();
+
+        if (durasi) {
+            setTimeout(() => {
+                audioEl.pause();
+                audioEl.currentTime = 0;
+                resolve();
+            }, durasi * 1000);
+        } else {
+            audioEl.onended = resolve;
+        }
+    });
+}
+
+/* ======================
+   AKTIFKAN AUDIO
+====================== */
+function aktifkanAudio() {
+    const bellAwal = document.getElementById("bellAwal");
+
+    bellAwal.play().then(() => {
+        bellAwal.pause();
+        bellAwal.currentTime = 0;
+
+        audioUnlocked = true;
+        document.getElementById("statusAudio").innerText =
+            "🟢 Audio aktif — otomatis & manual siap";
+    }).catch(() => {
+        alert("Klik sekali lagi untuk mengaktifkan audio");
+    });
+}
+
+/* ======================
+   APEL OTOMATIS
+====================== */
+async function panggilApel() {
+    if (!audioUnlocked) return;
+
+    const bellAwal = document.getElementById("bellAwal");
+    const dentang = document.getElementById("dentang");
+
+    window.speechSynthesis.cancel();
+
+    await playAudio(bellAwal, DURASI_BELL_AWAL);
+    await delay(JEDA_SETELAH_BELL);
+
+    await playTTS(TEKS_1);
+    await delay(JEDA_SETELAH_SUARA1);
+
+    await playAudio(dentang);
+    await playTTS(TEKS_2);
+}
+
+/* ======================
+   APEL MANUAL
+====================== */
+function panggilManual() {
+    if (!audioUnlocked) {
+        alert("Aktifkan audio terlebih dahulu");
+        return;
+    }
+    panggilApel();
+}
+
+/* ======================
+   JAM & JADWAL
+====================== */
+function updateJam() {
+    document.getElementById("jamSekarang").innerText =
+        new Date().toLocaleTimeString("id-ID");
+}
+
+function cekJadwal() {
+    if (!audioUnlocked) return;
+
+    const now = new Date();
+
+    if (
+        now.getHours() === JAM_APEL &&
+        now.getMinutes() === MENIT_APEL &&
+        now.getSeconds() === 0 &&
+        !sudahDipanggil
+    ) {
+        panggilApel();
+        sudahDipanggil = true;
+    }
+
+    if (now.getHours() === 0 && now.getMinutes() === 0) {
+        sudahDipanggil = false;
+    }
+}
+
+setInterval(() => {
+    updateJam();
+    cekJadwal();
+}, 1000);
+</script>
+
+</body>
+</html>
