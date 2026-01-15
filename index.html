@@ -8,223 +8,185 @@
 <style>
 body {
     font-family: Arial, sans-serif;
-    background: #0f172a;
+    background: linear-gradient(180deg, #0f172a, #1e1b4b);
     color: white;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
+    overflow: hidden;
 }
+
+.sakura {
+    position: fixed;
+    top: -10%;
+    width: 12px;
+    height: 12px;
+    background: pink;
+    border-radius: 50% 50% 50% 0;
+    opacity: 0.7;
+    transform: rotate(45deg);
+    animation: fall linear infinite;
+}
+
+@keyframes fall {
+    0% { transform: translateY(0) rotate(0deg); }
+    100% { transform: translateY(120vh) rotate(360deg); opacity: 0; }
+}
+
 .container {
+    position: relative;
+    z-index: 2;
     text-align: center;
-    background: #1e293b;
+    background: rgba(30, 41, 59, 0.85);
+    backdrop-filter: blur(8px);
     padding: 30px;
-    border-radius: 12px;
+    border-radius: 14px;
     width: 360px;
 }
+
 .jam {
     font-size: 22px;
     margin-bottom: 15px;
     font-weight: bold;
 }
+
 button {
     font-size: 16px;
     padding: 14px;
+    border-radius: 12px;
     border: none;
-    border-radius: 10px;
     cursor: pointer;
-    font-weight: bold;
     width: 100%;
     margin-top: 10px;
+    font-weight: bold;
 }
-.btn-aktif {
-    background: #22c55e;
-}
-.btn-aktif:hover {
-    background: #16a34a;
-}
-.btn-manual {
-    background: #3b82f6;
-}
-.btn-manual:hover {
-    background: #2563eb;
-}
+
+.btn-aktif { background: #22c55e; }
+.btn-manual { background: #3b82f6; }
+
 .status {
     margin-top: 15px;
     font-size: 14px;
-    color: #a7f3d0;
 }
 </style>
 </head>
 
 <body>
 
+<script>
+for (let i = 0; i < 20; i++) {
+    const s = document.createElement("div");
+    s.className = "sakura";
+    s.style.left = Math.random() * 100 + "vw";
+    s.style.animationDuration = (8 + Math.random() * 6) + "s";
+    s.style.animationDelay = Math.random() * 5 + "s";
+    document.body.appendChild(s);
+}
+</script>
+
 <div class="container">
-    <h2>📢 Apel Pagi Otomatis</h2>
+    <h2>🌸 APEL PAGI OTOMATIS</h2>
     <div class="jam" id="jamSekarang">--:--:--</div>
 
-    <button class="btn-aktif" onclick="aktifkanAudio()">
-        Aktifkan Sistem Apel
-    </button>
+    <button class="btn-aktif" onclick="aktifkanAudio()">AKTIFKAN SISTEM APEL</button>
+    <button class="btn-manual" onclick="panggilManual()">🔔 PANGGIL MANUAL</button>
 
-    <button class="btn-manual" onclick="panggilManual()">
-        🔔 Panggil Manual
-    </button>
-
-    <div class="status" id="statusAudio">
-        🔴 Audio belum aktif
-    </div>
+    <div class="status" id="statusAudio">🔴 Audio belum aktif</div>
 </div>
 
 <!-- AUDIO -->
-<audio id="bellAwal" src="ringtone Hp bell bandara.mp3"></audio>
-<audio id="dentang" src="sound-effect-dentang-lonceng_xonDDXBv.mp3"></audio>
+<audio id="bell" src="ringtone Hp bell bandara.mp3"></audio>
+<audio id="suara1" src="Mohon perhatian Sebe.mp3"></audio>
+<audio id="dentang" src="School Bell Sound Effect _ Free Creative Resources (mp3cut.net) (1).mp3"></audio>
+<audio id="suara2" src="Waktu sudah menunjuk (1).mp3"></audio>
 
 <script>
-/* ======================
-   SETTING JAM APEL
-====================== */
-const JAM_APEL = 8;
-const MENIT_APEL = 0;
+const JAM_APEL = 14;
+const MENIT_APEL = 18;
+const DURASI_BELL = 5; // 🔥 FIX 5 DETIK
 
-/* ======================
-   DURASI
-====================== */
-const DURASI_BELL_AWAL = 5;
-const JEDA_SETELAH_BELL = 1;
-const JEDA_SETELAH_SUARA1 = 1;
-
-/* ======================
-   TEKS SUARA
-====================== */
-const TEKS_1 = `
-Mohon perhatian.
-Setelah tanda lonceng berbunyi,
-diharapkan seluruh peserta apel
-mempersiapkan barisan.
-`;
-
-const TEKS_2 = `
-Waktu sudah menunjukkan pukul sembilan W I B.
-Saatnya apel pagi.
-Terima kasih.
-`;
-
-/* ======================
-   VARIABEL
-====================== */
 let audioUnlocked = false;
 let sudahDipanggil = false;
 
-/* ======================
-   HELPER
-====================== */
-function delay(detik) {
-    return new Promise(res => setTimeout(res, detik * 1000));
+const bell = document.getElementById("bell");
+const suara1 = document.getElementById("suara1");
+const dentang = document.getElementById("dentang");
+const suara2 = document.getElementById("suara2");
+
+function delay(d) {
+    return new Promise(r => setTimeout(r, d * 1000));
 }
 
-function playTTS(text) {
-    return new Promise(resolve => {
-        const suara = new SpeechSynthesisUtterance(text);
-        suara.lang = "id-ID";
-        suara.rate = 0.9;
-        suara.onend = resolve;
-        window.speechSynthesis.speak(suara);
+function playAudio(audio) {
+    return new Promise(res => {
+        audio.currentTime = 0;
+        audio.volume = 1;
+        audio.play();
+        audio.onended = res;
     });
 }
 
-function playAudio(audioEl, durasi = null) {
-    return new Promise(resolve => {
-        audioEl.currentTime = 0;
-        audioEl.play();
-
-        if (durasi) {
-            setTimeout(() => {
-                audioEl.pause();
-                audioEl.currentTime = 0;
-                resolve();
-            }, durasi * 1000);
-        } else {
-            audioEl.onended = resolve;
-        }
+function playAudioDurasi(audio, detik) {
+    return new Promise(res => {
+        audio.currentTime = 0;
+        audio.volume = 1;
+        audio.play();
+        setTimeout(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            res();
+        }, detik * 1000);
     });
 }
 
-/* ======================
-   AKTIFKAN AUDIO
-====================== */
 function aktifkanAudio() {
-    const bellAwal = document.getElementById("bellAwal");
-
-    bellAwal.play().then(() => {
-        bellAwal.pause();
-        bellAwal.currentTime = 0;
-
+    bell.play().then(() => {
+        bell.pause();
+        bell.currentTime = 0;
         audioUnlocked = true;
-        document.getElementById("statusAudio").innerText =
-            "🟢 Audio aktif — otomatis & manual siap";
-    }).catch(() => {
-        alert("Klik sekali lagi untuk mengaktifkan audio");
+        statusAudio.innerText = "🟢 Audio aktif";
     });
 }
 
-/* ======================
-   APEL OTOMATIS
-====================== */
 async function panggilApel() {
     if (!audioUnlocked) return;
 
-    const bellAwal = document.getElementById("bellAwal");
-    const dentang = document.getElementById("dentang");
+    await playAudioDurasi(bell, DURASI_BELL); // 🔔 bell awal
+    await delay(1.5);
 
-    window.speechSynthesis.cancel();
-
-    await playAudio(bellAwal, DURASI_BELL_AWAL);
-    await delay(JEDA_SETELAH_BELL);
-
-    await playTTS(TEKS_1);
-    await delay(JEDA_SETELAH_SUARA1);
+    await playAudio(suara1);
+    await delay(1.5);
 
     await playAudio(dentang);
-    await playTTS(TEKS_2);
+    await delay(1);
+
+    await playAudio(suara2);
+    await delay(1.5);
+
+    await playAudioDurasi(bell, DURASI_BELL); // 🔔 bell AKHIR
 }
 
-/* ======================
-   APEL MANUAL
-====================== */
 function panggilManual() {
-    if (!audioUnlocked) {
-        alert("Aktifkan audio terlebih dahulu");
-        return;
-    }
+    if (!audioUnlocked) return alert("Aktifkan audio terlebih dahulu");
     panggilApel();
 }
 
-/* ======================
-   JAM & JADWAL
-====================== */
 function updateJam() {
-    document.getElementById("jamSekarang").innerText =
-        new Date().toLocaleTimeString("id-ID");
+    jamSekarang.innerText = new Date().toLocaleTimeString("id-ID");
 }
 
 function cekJadwal() {
-    if (!audioUnlocked) return;
-
-    const now = new Date();
-
+    const n = new Date();
     if (
-        now.getHours() === JAM_APEL &&
-        now.getMinutes() === MENIT_APEL &&
-        now.getSeconds() === 0 &&
+        audioUnlocked &&
+        n.getHours() === JAM_APEL &&
+        n.getMinutes() === MENIT_APEL &&
+        n.getSeconds() === 0 &&
         !sudahDipanggil
     ) {
         panggilApel();
         sudahDipanggil = true;
-    }
-
-    if (now.getHours() === 0 && now.getMinutes() === 0) {
-        sudahDipanggil = false;
     }
 }
 
